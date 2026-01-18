@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datapipe-cli"
+version = "0.1.0"
+description = "Manufacturing Data Integration & Quality Toolkit"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer[all]>=0.9.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pandas>=2.1.0",
+    "sqlalchemy>=2.0.0",
+    "pyarrow>=14.0.0",
+    "pyyaml>=6.0"
+]
+
+[project.optional-dependencies]
+oracle = ["python-oracledb>=2.0.0"]
+postgres = ["psycopg[binary]>=3.1.0"]
+all = ["python-oracledb>=2.0.0", "psycopg[binary]>=3.1.0"]
+
+[project.scripts]
+datapipe = "datapipe.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/datapipe"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q"
