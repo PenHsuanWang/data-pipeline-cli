@@ -9,6 +9,10 @@ class DatabaseConfig(BaseModel):
     alias: str
     type: str  # oracle, postgres, sqlite, etc.
     connection_string: str
+    
+    # Oracle Specific Options
+    oracle_thick_mode: bool = False
+    oracle_lib_dir: Optional[str] = None
 
 class AppConfig(BaseSettings):
     databases: List[DatabaseConfig] = []
