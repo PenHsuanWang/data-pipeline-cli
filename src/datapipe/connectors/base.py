@@ -1,7 +1,7 @@
 from typing import Iterator, List, Any, Optional
 import time
 import pandas as pd
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine, text, inspect, event
 from sqlalchemy.exc import SQLAlchemyError
 from ..domain.interfaces import DatabaseConnector
 from ..domain.models import TableSchema, ColumnDef, HealthStatus, ConnectionHealth
@@ -17,11 +17,68 @@ class SQLAlchemyConnector:
         self.db_alias = db_alias
         self._engine = None
 
+    @staticmethod
+    def _enforce_read_only_listener(conn, cursor, statement, parameters, context, executemany):
+        """
+        Strategy 1: Event Hook (Interceptor).
+        Blocks any SQL that doesn't start with a whitelist keyword.
+        """
+        sql = statement.strip().upper()
+        
+        # Whitelist: Only allow safe starting keywords
+        allowed_starts = (
+            "SELECT", 
+            "WITH", 
+            "EXPLAIN", 
+            "DESCRIBE", 
+            "SHOW", 
+            "SET",          # Needed for session configuration
+            "ALTER SESSION" # Needed for Oracle session config
+        )
+        
+        if not any(sql.startswith(keyword) for keyword in allowed_starts):
+            raise PermissionError(
+                f"SAFETY BLOCK: Operation blocked! Only read-only queries are allowed. "
+                f"Attempted: {sql[:50]}..."
+            )
+
+    @staticmethod
+    def _set_readonly_transaction_listener(connection, branch):
+        """
+        Strategy 2: Transaction-Level Read-Only Mode.
+        Sets the session to READ ONLY immediately after connection.
+        """
+        try:
+            # We need to determine the dialect to use the correct syntax
+            # connection.dialect.name gives 'postgresql', 'oracle', etc.
+            dialect = connection.dialect.name.lower()
+            
+            if dialect == 'oracle':
+                 # Oracle: SET TRANSACTION READ ONLY must be the first statement
+                 connection.execute(text("SET TRANSACTION READ ONLY"))
+            elif dialect == 'postgresql':
+                 # Postgres: SET SESSION CHARACTERISTICS...
+                 connection.execute(text("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY"))
+            # Add other dialects here if needed
+            
+        except Exception as e:
+            # Log warning but don't crash if database doesn't support it (e.g. SQLite)
+            # or if it fails for some reason. Strategy 1 is the primary guard.
+            # print(f"Warning: Failed to set READ ONLY transaction: {e}")
+            pass
+
     def connect(self) -> None:
         if not self._engine:
             try:
                 # Create engine but don't connect yet (lazy)
                 self._engine = create_engine(self.connection_string)
+                
+                # Register Strategy 1: Interceptor
+                event.listen(self._engine, "before_cursor_execute", self._enforce_read_only_listener)
+                
+                # Register Strategy 2: Session Configuration
+                event.listen(self._engine, "engine_connect", self._set_readonly_transaction_listener)
+                
             except Exception as e:
                 raise ConnectionError(f"Failed to create engine: {e}")
 
