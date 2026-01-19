@@ -5,13 +5,20 @@ from pydantic_settings import BaseSettings
 from pydantic import BaseModel, ValidationError
 from .exceptions import ConfigurationError
 
+from enum import Enum
+
+class OracleClientMode(str, Enum):
+    THIN = "thin"
+    THICK = "thick"
+    AUTO = "auto"
+
 class DatabaseConfig(BaseModel):
     alias: str
     type: str  # oracle, postgres, sqlite, etc.
     connection_string: str
     
     # Oracle Specific Options
-    oracle_thick_mode: bool = False
+    oracle_client_mode: OracleClientMode = OracleClientMode.THIN
     oracle_lib_dir: Optional[str] = None
 
 class AppConfig(BaseSettings):
