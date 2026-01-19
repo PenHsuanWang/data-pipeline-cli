@@ -33,7 +33,7 @@ def check_conn(
         typer.echo(f"Checking {db_config.alias} ({db_config.type})...")
         
         try:
-            connector = get_connector(db_config.connection_string, db_config.alias)
+            connector = get_connector(db_config, db_config.alias)
             facade = InspectorFacade(connector)
             report = facade.run_diagnostics()
             
@@ -87,7 +87,7 @@ def inspect(
             # Load Config & Connector
             app_config = AppConfig.from_yaml(config)
             db_config = app_config.get_db_config(db_alias)
-            connector = get_connector(db_config.connection_string, db_config.alias)
+            connector = get_connector(db_config, db_config.alias)
             
             # Run
             reader = DatabaseReader(connector, table_name)
@@ -142,7 +142,7 @@ def export(
              
              app_config = AppConfig.from_yaml(config)
              db_config = app_config.get_db_config(to_db)
-             connector = get_connector(db_config.connection_string, db_config.alias)
+             connector = get_connector(db_config, db_config.alias)
              # Important: Connect explicitly if loader needs it, though loader might handle it
              connector.connect() 
         
