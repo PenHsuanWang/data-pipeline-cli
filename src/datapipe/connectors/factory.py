@@ -48,11 +48,11 @@ def get_connector(config: Union[str, DatabaseConfig], alias: str = "unknown") ->
     if connection_string.startswith("postgresql") or connection_string.startswith("postgres"):
         return PostgresConnector(connection_string, alias)
     elif "oracle" in connection_string:
-        # If we have a config object and it's oracle, we might want to pass more info
-        # But currently OracleConnector only takes conn string.
-        # Ideally, we should update OracleConnector to take the config object too.
-        # For now, the global init handled above covers the critical part.
-        return OracleConnector(connection_string, alias)
+        thick_mode = False
+        if isinstance(config, DatabaseConfig) and config.type == "oracle":
+            thick_mode = config.oracle_thick_mode
+            
+        return OracleConnector(connection_string, alias, thick_mode=thick_mode)
     elif "sqlite" in connection_string:
          return SQLAlchemyConnector(connection_string, alias)
     else:
